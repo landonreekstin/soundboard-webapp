@@ -46,14 +46,3 @@ export async function putTheme(theme) {
   await db.put('settings', theme, 'theme');
   return theme;
 }
-
-export async function getPrefs() {
-  const db = await dbPromise;
-  return db.get('settings', 'prefs');
-}
-
-export async function putPrefs(prefs) {
-  const db = await dbPromise;
-  await db.put('settings', prefs, 'prefs');
-  return prefs;
-}

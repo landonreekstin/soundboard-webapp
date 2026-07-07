@@ -1,17 +1,11 @@
 import { writable } from 'svelte/store';
-import { getAllSounds, putSound, deleteSound, getTheme, putTheme, getPrefs, putPrefs } from './db.js';
+import { getAllSounds, putSound, deleteSound, getTheme, putTheme } from './db.js';
 import { evictBuffer } from './audio.js';
 
 export const sounds = writable([]);
 export const theme = writable(null);
-export const prefs = writable(null);
 export const view = writable('grid');
 export const editingSound = writable(null);
-
-export const DEFAULT_PREFS = {
-  cobaltInstance: '',
-  cobaltApiKey: ''
-};
 
 export const DEFAULT_THEME = {
   bgColor: '#1e1f22',
@@ -63,14 +57,9 @@ export const PRESET_THEMES = {
 };
 
 export async function loadInitial() {
-  const [loadedSounds, loadedTheme, loadedPrefs] = await Promise.all([
-    getAllSounds(),
-    getTheme(),
-    getPrefs()
-  ]);
+  const [loadedSounds, loadedTheme] = await Promise.all([getAllSounds(), getTheme()]);
   sounds.set(loadedSounds);
   theme.set(loadedTheme || DEFAULT_THEME);
-  prefs.set({ ...DEFAULT_PREFS, ...(loadedPrefs || {}) });
 }
 
 export async function saveSound(sound) {
@@ -90,9 +79,4 @@ export async function removeSound(id) {
 export async function saveTheme(next) {
   await putTheme(next);
   theme.set(next);
-}
-
-export async function savePrefs(next) {
-  await putPrefs(next);
-  prefs.set(next);
 }
