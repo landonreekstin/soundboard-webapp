@@ -3,19 +3,40 @@
   import SoundButton from './SoundButton.svelte';
 
   const MAX_SOUNDS = 50;
+  const MAX_TILE = 260;
+  const MIN_TILE = 80;
+  const TOPBAR_H = 60;
+  const GRID_PAD = 32;
 
-  $: count = $sounds.length;
-  $: canAdd = count < MAX_SOUNDS;
-  $: cols = computeCols(count);
+  let vw = 1000;
+  let vh = 700;
 
-  function computeCols(n) {
-    if (n <= 1) return 1;
-    if (n <= 4) return 2;
-    if (n <= 9) return 3;
-    if (n <= 16) return 4;
-    if (n <= 25) return 5;
-    if (n <= 36) return 6;
-    return 7;
+  $: canAdd = $sounds.length < MAX_SOUNDS;
+  $: total = $sounds.length + (canAdd ? 1 : 0);
+  $: layout = computeLayout(total, vw, vh);
+
+  function computeLayout(n, w, h) {
+    if (n <= 0) return { cols: 1, size: MAX_TILE };
+    const availW = Math.max(200, w - GRID_PAD);
+    const availH = Math.max(200, h - TOPBAR_H - GRID_PAD);
+    const aspect = availW / availH;
+    let best = null;
+    for (let c = 1; c <= n; c++) {
+      const r = Math.ceil(n / c);
+      const rawSize = Math.min(availW / c, availH / r);
+      const size = Math.min(rawSize, MAX_TILE);
+      const emptyCells = c * r - n;
+      const score = size - emptyCells * 24;
+      const aspectDiff = Math.abs(c / r - aspect);
+      if (
+        !best ||
+        score > best.score ||
+        (score === best.score && aspectDiff < best.aspectDiff)
+      ) {
+        best = { cols: c, size, score, aspectDiff };
+      }
+    }
+    return { cols: best.cols, size: Math.max(MIN_TILE, best.size) };
   }
 
   function handleAdd() {
@@ -24,7 +45,9 @@
   }
 </script>
 
-<div class="grid" style="--cols: {cols}">
+<svelte:window bind:innerWidth={vw} bind:innerHeight={vh} />
+
+<div class="grid" style="--cols: {layout.cols}; --tile-size: {layout.size}px">
   {#each $sounds as sound (sound.id)}
     <SoundButton {sound} />
   {/each}
@@ -40,16 +63,18 @@
   {/if}
 </div>
 
-{#if count === 0}
+{#if $sounds.length === 0}
   <p class="empty-hint">Click + to add your first sound.</p>
 {/if}
 
 <style>
   .grid {
     display: grid;
-    grid-template-columns: repeat(var(--cols), 1fr);
+    grid-template-columns: repeat(var(--cols), minmax(0, var(--tile-size)));
     gap: 12px;
     padding: 16px;
+    justify-content: center;
+    align-content: start;
     container-type: inline-size;
   }
   .add-tile {
@@ -66,8 +91,13 @@
     cursor: pointer;
     font-family: inherit;
     font-weight: 600;
-    font-size: clamp(0.75rem, 2cqi, 1rem);
+    font-size: clamp(0.75rem, 6cqi, 1rem);
+    container-type: inline-size;
     transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .add-tile svg {
+    width: min(42px, 30cqi);
+    height: min(42px, 30cqi);
   }
   .add-tile:hover {
     background: color-mix(in srgb, var(--accent-color) 15%, transparent);

@@ -56,6 +56,7 @@
     overflow: hidden;
     font-family: inherit;
     font-weight: 600;
+    container-type: inline-size;
     transition: transform 0.08s ease, background 0.15s ease;
     display: flex;
     align-items: center;
@@ -81,7 +82,7 @@
     padding: 0 8px;
     text-align: center;
     word-break: break-word;
-    font-size: clamp(0.7rem, 2.5cqi, 1.2rem);
+    font-size: clamp(0.7rem, 8cqi, 1.4rem);
   }
   .label-overlay {
     background: rgba(0, 0, 0, 0.55);
