@@ -94,6 +94,34 @@ Cross-browser:
 - [ ] Firefox: upload/play works. IndexedDB persists across restart.
 - [ ] Safari: first tap of a sound button initializes AudioContext without errors.
 
+## Import from URL (YouTube, TikTok, …)
+
+The soundboard can pull audio from a YouTube or TikTok URL and drop it straight into the trim UI. Browsers can't fetch those directly, so the app calls a small extraction service — [Cobalt](https://github.com/imputnet/cobalt) — that you point at from Settings.
+
+You need a Cobalt API instance to point at. Two options:
+
+### Option A — self-host (recommended for reliability)
+
+Any box with Docker will do (a Fly.io or Render free tier is fine for personal use):
+
+```bash
+docker run -d --name cobalt-api -p 9000:9000 ghcr.io/imputnet/cobalt:10
+```
+
+Then open the soundboard → Settings → **Import source (Cobalt)** → paste `http://your-host:9000` into the instance URL field.
+
+### Option B — community instance
+
+Point at any Cobalt mirror you trust. Note: the flagship `api.cobalt.tools` blocks third-party apps, so don't use it directly. Community instance lists rotate frequently — search "cobalt instances" for current options.
+
+### Using it
+
+1. In the sound editor, paste a video URL into the "Import from URL" field.
+2. Click **Fetch audio**. A waveform appears within a few seconds.
+3. Trim, name, save — same as any other sound.
+
+Only for personal use of content you have the right to use.
+
 ## Notes on audio format support
 
 The app uses each browser's built-in decoder (Web Audio API's `decodeAudioData`) — no transcoding on the client. Coverage:

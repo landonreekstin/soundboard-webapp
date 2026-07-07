@@ -1,6 +1,7 @@
 <script>
-  import { view, editingSound, saveSound, removeSound, sounds } from '../lib/stores.js';
+  import { view, editingSound, saveSound, removeSound, sounds, prefs } from '../lib/stores.js';
   import { decodeBlob, playSound } from '../lib/audio.js';
+  import { fetchAudioFromUrl, UrlImportError } from '../lib/urlImport.js';
   import WaveformTrimmer from './WaveformTrimmer.svelte';
 
   let name = '';
@@ -14,6 +15,8 @@
   let errorMsg = '';
   let loading = false;
   let previewSource = null;
+  let sourceUrl = '';
+  let fetching = false;
 
   const isNew = !$editingSound;
 
@@ -33,26 +36,49 @@
       .catch((e) => (errorMsg = 'Could not decode saved audio: ' + e.message));
   }
 
+  async function loadAudioBlob(blob, displayName) {
+    const buf = await decodeBlob(blob);
+    audioBlob = blob;
+    audioMimeType = blob.type || 'audio/unknown';
+    audioBuffer = buf;
+    duration = buf.duration;
+    trimStart = 0;
+    trimEnd = buf.duration;
+    if (!name && displayName) name = displayName.replace(/\.[^.]+$/, '');
+  }
+
   async function handleAudioFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     errorMsg = '';
     loading = true;
     try {
-      const buf = await decodeBlob(file);
-      audioBlob = file;
-      audioMimeType = file.type || 'audio/unknown';
-      audioBuffer = buf;
-      duration = buf.duration;
-      trimStart = 0;
-      trimEnd = buf.duration;
-      if (!name) name = file.name.replace(/\.[^.]+$/, '');
+      await loadAudioBlob(file, file.name);
     } catch (err) {
       errorMsg = `This browser can't decode "${file.name}". Try MP3, WAV, or M4A.`;
       audioBlob = null;
       audioBuffer = null;
     }
     loading = false;
+  }
+
+  async function handleFetchUrl() {
+    if (!sourceUrl.trim()) return;
+    errorMsg = '';
+    fetching = true;
+    try {
+      const { blob, filename } = await fetchAudioFromUrl(sourceUrl, $prefs);
+      await loadAudioBlob(blob, filename);
+    } catch (err) {
+      if (err instanceof UrlImportError) {
+        errorMsg = err.message;
+      } else {
+        errorMsg = 'Import failed: ' + err.message;
+      }
+      audioBlob = null;
+      audioBuffer = null;
+    }
+    fetching = false;
   }
 
   function handleImageFile(e) {
@@ -134,7 +160,30 @@
   </section>
 
   <section class="field">
-    <label for="sound-audio">Audio file</label>
+    <label for="sound-url">Import from URL (YouTube, TikTok, …)</label>
+    <div class="url-row">
+      <input
+        id="sound-url"
+        type="url"
+        bind:value={sourceUrl}
+        placeholder="https://youtube.com/watch?v=…"
+        disabled={fetching}
+      />
+      <button
+        class="fetch"
+        on:click={handleFetchUrl}
+        disabled={fetching || !sourceUrl.trim()}
+      >
+        {fetching ? 'Fetching…' : 'Fetch audio'}
+      </button>
+    </div>
+    {#if !$prefs?.cobaltInstance}
+      <p class="hint">Set a Cobalt instance URL in Settings first.</p>
+    {/if}
+  </section>
+
+  <section class="field">
+    <label for="sound-audio">Or upload an audio file</label>
     <input id="sound-audio" type="file" accept="audio/*" on:change={handleAudioFile} />
     {#if loading}
       <p class="hint">Decoding…</p>
@@ -201,7 +250,8 @@
     font-size: 0.9rem;
     opacity: 0.85;
   }
-  input[type='text'] {
+  input[type='text'],
+  input[type='url'] {
     padding: 10px 12px;
     background: var(--button-color);
     color: var(--button-text-color);
@@ -209,6 +259,29 @@
     border-radius: 8px;
     font-family: inherit;
     font-size: 1rem;
+  }
+  .url-row {
+    display: flex;
+    gap: 8px;
+  }
+  .url-row input {
+    flex: 1;
+    min-width: 0;
+  }
+  .fetch {
+    padding: 10px 16px;
+    background: var(--accent-color);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .fetch:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
   input[type='file'] {
     color: var(--button-text-color);

@@ -1,5 +1,5 @@
 <script>
-  import { theme, saveTheme, view, DEFAULT_THEME, PRESET_THEMES } from '../lib/stores.js';
+  import { theme, saveTheme, view, DEFAULT_THEME, PRESET_THEMES, prefs, savePrefs } from '../lib/stores.js';
   import { blobToDataUrl } from '../lib/theme.js';
   import ColorPicker from './ColorPicker.svelte';
 
@@ -39,6 +39,14 @@
 
   async function reset() {
     await saveTheme({ ...DEFAULT_THEME });
+  }
+
+  async function updateCobaltInstance(e) {
+    await savePrefs({ ...$prefs, cobaltInstance: e.target.value });
+  }
+
+  async function updateCobaltApiKey(e) {
+    await savePrefs({ ...$prefs, cobaltApiKey: e.target.value });
   }
 
   function close() { view.set('grid'); }
@@ -100,6 +108,35 @@
         <button on:click={clearBgImage}>Remove</button>
       </div>
     {/if}
+  </section>
+
+  <section>
+    <h2>Import source (Cobalt)</h2>
+    <p class="section-hint">
+      To import audio from YouTube / TikTok URLs, point at a Cobalt API instance
+      you host or trust. See the README for a one-line Docker deploy.
+    </p>
+    <div class="pref-field">
+      <label for="cobalt-instance">Instance URL</label>
+      <input
+        id="cobalt-instance"
+        type="url"
+        placeholder="https://cobalt.example.com"
+        value={$prefs?.cobaltInstance ?? ''}
+        on:change={updateCobaltInstance}
+      />
+    </div>
+    <div class="pref-field">
+      <label for="cobalt-key">API key (optional)</label>
+      <input
+        id="cobalt-key"
+        type="text"
+        autocomplete="off"
+        placeholder="Only if your instance requires one"
+        value={$prefs?.cobaltApiKey ?? ''}
+        on:change={updateCobaltApiKey}
+      />
+    </div>
   </section>
 </div>
 
@@ -196,5 +233,31 @@
     border-radius: 6px;
     cursor: pointer;
     font-family: inherit;
+  }
+  .section-hint {
+    margin: 0 0 12px 0;
+    opacity: 0.75;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+  .pref-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .pref-field label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    opacity: 0.85;
+  }
+  .pref-field input {
+    padding: 10px 12px;
+    background: var(--button-color);
+    color: var(--button-text-color);
+    border: 1px solid color-mix(in srgb, var(--button-text-color) 20%, transparent);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
   }
 </style>
