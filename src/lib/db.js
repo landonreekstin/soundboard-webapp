@@ -36,6 +36,16 @@ export async function countSounds() {
   return db.count('sounds');
 }
 
+export async function replaceAllSounds(newSounds) {
+  const db = await dbPromise;
+  const tx = db.transaction('sounds', 'readwrite');
+  await tx.store.clear();
+  for (const s of newSounds) {
+    await tx.store.put(s);
+  }
+  await tx.done;
+}
+
 export async function getTheme() {
   const db = await dbPromise;
   return db.get('settings', 'theme');

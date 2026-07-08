@@ -1,9 +1,15 @@
 <script>
-  import { theme, saveTheme, view, DEFAULT_THEME, PRESET_THEMES } from '../lib/stores.js';
+  import { theme, saveTheme, view, DEFAULT_THEME, PRESET_THEMES, sounds, replaceAllFromBundle, appendSounds } from '../lib/stores.js';
   import { blobToDataUrl } from '../lib/theme.js';
+  import { exportBundleBlob, exportFilename, parseBundle, decodeBundleSounds, BundleError } from '../lib/backup.js';
   import ColorPicker from './ColorPicker.svelte';
 
   let openPicker = null;
+  let importFile = null;
+  let importMode = 'replace';
+  let importMsg = '';
+  let importBusy = false;
+  let exportBusy = false;
 
   const swatches = [
     { key: 'bgColor', label: 'Background' },
@@ -39,6 +45,62 @@
 
   async function reset() {
     await saveTheme({ ...DEFAULT_THEME });
+  }
+
+  async function exportSoundboard() {
+    exportBusy = true;
+    try {
+      const blob = await exportBundleBlob($sounds, $theme);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = exportFilename();
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } finally {
+      exportBusy = false;
+    }
+  }
+
+  function handleImportFile(e) {
+    importFile = e.target.files?.[0] || null;
+    importMsg = '';
+  }
+
+  async function doImport() {
+    if (!importFile) return;
+    importMsg = '';
+    importBusy = true;
+    try {
+      const bundle = await parseBundle(importFile);
+      const decoded = decodeBundleSounds(bundle);
+      if (importMode === 'replace') {
+        const count = $sounds.length;
+        if (count > 0) {
+          const ok = confirm(
+            `Replace all ${count} existing sound${count === 1 ? '' : 's'} and theme with the imported soundboard? This can't be undone.`
+          );
+          if (!ok) {
+            importBusy = false;
+            return;
+          }
+        }
+        await replaceAllFromBundle(decoded, bundle.theme);
+        importMsg = `Imported ${decoded.length} sound${decoded.length === 1 ? '' : 's'}.`;
+      } else {
+        await appendSounds(decoded);
+        importMsg = `Added ${decoded.length} sound${decoded.length === 1 ? '' : 's'}.`;
+      }
+      importFile = null;
+      const input = document.getElementById('import-file');
+      if (input) input.value = '';
+    } catch (err) {
+      importMsg = err instanceof BundleError ? err.message : 'Import failed: ' + err.message;
+    } finally {
+      importBusy = false;
+    }
   }
 
   function close() { view.set('grid'); }
@@ -100,6 +162,40 @@
         <button on:click={clearBgImage}>Remove</button>
       </div>
     {/if}
+  </section>
+
+  <section>
+    <h2>Backup & sync</h2>
+    <p class="section-hint">
+      Export a file containing your sounds and theme, then import it on another device
+      to sync. Transfer the file however you like — AirDrop, Drive, email.
+    </p>
+    <div class="backup-row">
+      <button class="backup-btn" on:click={exportSoundboard} disabled={exportBusy || $sounds.length === 0}>
+        {exportBusy ? 'Exporting…' : `Export soundboard (${$sounds.length})`}
+      </button>
+    </div>
+
+    <div class="import-block">
+      <label for="import-file" class="import-label">Import from file</label>
+      <input id="import-file" type="file" accept=".json,application/json" on:change={handleImportFile} />
+      <div class="import-modes">
+        <label class="mode-option">
+          <input type="radio" bind:group={importMode} value="replace" />
+          Replace everything
+        </label>
+        <label class="mode-option">
+          <input type="radio" bind:group={importMode} value="append" />
+          Add to my sounds
+        </label>
+      </div>
+      <button class="backup-btn" on:click={doImport} disabled={!importFile || importBusy}>
+        {importBusy ? 'Importing…' : 'Import'}
+      </button>
+      {#if importMsg}
+        <p class="import-msg">{importMsg}</p>
+      {/if}
+    </div>
   </section>
 </div>
 
@@ -196,5 +292,63 @@
     border-radius: 6px;
     cursor: pointer;
     font-family: inherit;
+  }
+  .section-hint {
+    margin: 0 0 12px 0;
+    opacity: 0.75;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+  .backup-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .backup-btn {
+    padding: 10px 16px;
+    background: var(--accent-color);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .backup-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .import-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid color-mix(in srgb, var(--button-text-color) 15%, transparent);
+    border-radius: 8px;
+  }
+  .import-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    opacity: 0.85;
+  }
+  .import-modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .mode-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+  .mode-option input {
+    accent-color: var(--accent-color);
+  }
+  .import-msg {
+    margin: 0;
+    font-size: 0.9rem;
+    opacity: 0.9;
   }
 </style>

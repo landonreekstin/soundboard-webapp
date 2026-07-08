@@ -1,5 +1,5 @@
-import { writable } from 'svelte/store';
-import { getAllSounds, putSound, deleteSound, getTheme, putTheme } from './db.js';
+import { writable, get } from 'svelte/store';
+import { getAllSounds, putSound, deleteSound, getTheme, putTheme, replaceAllSounds } from './db.js';
 import { evictBuffer } from './audio.js';
 
 export const sounds = writable([]);
@@ -79,4 +79,29 @@ export async function removeSound(id) {
 export async function saveTheme(next) {
   await putTheme(next);
   theme.set(next);
+}
+
+export async function replaceAllFromBundle(newSounds, newTheme) {
+  await replaceAllSounds(newSounds);
+  const priorIds = get(sounds).map((s) => s.id);
+  priorIds.forEach(evictBuffer);
+  newSounds.forEach((s) => evictBuffer(s.id));
+  const all = await getAllSounds();
+  sounds.set(all);
+  if (newTheme) await saveTheme(newTheme);
+}
+
+export async function appendSounds(newSounds) {
+  const existing = await getAllSounds();
+  const startOrder = existing.length ? Math.max(...existing.map((s) => s.order)) + 1 : 0;
+  const renumbered = newSounds.map((s, i) => ({
+    ...s,
+    id: crypto.randomUUID(),
+    order: startOrder + i
+  }));
+  for (const s of renumbered) {
+    await putSound(s);
+  }
+  const all = await getAllSounds();
+  sounds.set(all);
 }

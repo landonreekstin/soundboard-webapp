@@ -94,6 +94,16 @@ Cross-browser:
 - [ ] Firefox: upload/play works. IndexedDB persists across restart.
 - [ ] Safari: first tap of a sound button initializes AudioContext without errors.
 
+## Sync between devices
+
+The app stores everything locally in each browser, so setups don't automatically follow you across devices. To copy your soundboard from one device to another:
+
+1. **On the source device:** open Settings → **Backup & sync** → **Export soundboard**. You get a `.json` file containing all your sounds, images, and theme.
+2. **Transfer the file** to the other device however you like — AirDrop, Google Drive, iCloud Drive, email, a USB stick.
+3. **On the target device:** open the app → Settings → **Backup & sync**. Pick the file, choose **Replace everything** (or **Add to my sounds** to merge), then Import.
+
+The file is a single JSON blob you can inspect or back up wherever you want. No accounts, no cloud services.
+
 ## Notes on audio format support
 
 The app uses each browser's built-in decoder (Web Audio API's `decodeAudioData`) — no transcoding on the client. Coverage:
